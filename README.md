@@ -22,10 +22,9 @@ jobs:
         uses: actions/checkout@master
       
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.2
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.3
         with:
           hugo-version: 0.85.0
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```

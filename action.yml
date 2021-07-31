@@ -11,7 +11,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install Hugo
+    - id: install-hugo
       run: |
         HUGO_DOWNLOAD=hugo_extended_${{ inputs.hugo-version }}_Linux-64bit.tar.gz
         wget https://github.com/gohugoio/hugo/releases/download/v${{ inputs.hugo-version }}/${HUGO_DOWNLOAD}
@@ -19,20 +19,19 @@ runs:
         mv hugo $HOME/hugo
       shell: bash
     
-    - name: Download Theme
+    - id: download-themes
       run: |
         git submodule init
         git submodule update
       shell: bash
     
-    - name: Hugo Build
+    - id: hugo-build
       run: $HOME/hugo -v
       shell: bash
     
-    - name: Deploy to S3
-      if: github.ref == 'refs/heads/master'
+    - id: deploy-to-s3
       run: $HOME/hugo -v deploy --invalidateCDN --maxDeletes -1
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
       shell: bash
