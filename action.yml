@@ -1,6 +1,8 @@
 name: 'Deploy Hugo to S3'
 description: 'Build and deploy Hugo static websites to AWS S3'
 author: 'AlbertMorenoDEV'
+icon: package
+color: yellow
 inputs:
   hugo-version:
     description: 'Choose a valid Hugo version'
