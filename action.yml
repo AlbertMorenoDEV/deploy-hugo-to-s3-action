@@ -8,6 +8,10 @@ inputs:
   hugo-version:
     description: 'Choose a valid Hugo version'
     required: true
+  target:
+    description: 'A deployment target'
+    required: false
+    default: ''
 runs:
   using: "composite"
   steps:
@@ -30,7 +34,12 @@ runs:
       shell: bash
     
     - id: deploy-to-s3
-      run: $HOME/hugo -v deploy --invalidateCDN --maxDeletes -1
+      run: |
+        if [[ "${{ inputs.target }}" ]]; then
+          $HOME/hugo -v deploy --target=${{ inputs.target }} --invalidateCDN --maxDeletes -1
+        else
+          $HOME/hugo -v deploy --invalidateCDN --maxDeletes -1
+        fi
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
         AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
