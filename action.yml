@@ -8,6 +8,12 @@ inputs:
   hugo-version:
     description: 'Choose a valid Hugo version'
     required: true
+  aws-access-key-id:
+    description: 'AWS Access Key ID'
+    required: true
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key'
+    required: true
   target:
     description: 'A deployment target'
     required: false

@@ -24,7 +24,7 @@ jobs:
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.3
         with:
-          hugo-version: 0.85.0
+          hugo-version: 0.89.0
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
@@ -59,7 +59,7 @@ jobs:
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.3
         with:
-          hugo-version: 0.85.0
+          hugo-version: 0.89.0
           target: production
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
