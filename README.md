@@ -29,6 +29,40 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
 
+## Custom Config File
+
+Optional `config` to specify a custom config file. Handy for Hugo sites that have more than one config file.
+
+### Example
+
+#### GitHub Action
+
+```
+name: Hugo Build and Deploy to S3
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out master
+        uses: actions/checkout@master
+      
+      - name: Build and deploy
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
+        with:
+          hugo-version: 0.89.0
+          config: path/config.toml
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+```
+
 ## Targets
 
 Optional `input` to specify a deployment target. Handy for Hugo sites that have multiple environments (e.g. "staging" and "production").
