@@ -22,6 +22,10 @@ inputs:
     description: 'Config file'
     required: false
     default: ''
+  environment:
+    description: 'environment'
+    required: false
+    default: ''    
 runs:
   using: "composite"
   steps:
@@ -46,6 +50,10 @@ runs:
     - id: deploy-to-s3
       run: |
         HUGO_FLAGS=" --invalidateCDN --maxDeletes -1"
+        
+        if [[ "${{ inputs.environment }}" ]]; then
+          HUGO_FLAGS="$HUGO_FLAGS --environment=${{ inputs.environment }}"
+        fi        
         
         if [[ "${{ inputs.config }}" ]]; then
           HUGO_FLAGS="$HUGO_FLAGS --config=${{ inputs.config }}"
