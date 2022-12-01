@@ -52,7 +52,7 @@ runs:
         HUGO_FLAGS=" --invalidateCDN --maxDeletes -1"
         
         if [[ "${{ inputs.environment }}" ]]; then
-          HUGO_FLAGS="$HUGO_FLAGS --environment ${{ inputs.environment }}"
+          HUGO_FLAGS="$HUGO_FLAGS --environment=${{ inputs.environment }}"
         fi        
         
         if [[ "${{ inputs.config }}" ]]; then
