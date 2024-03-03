@@ -25,7 +25,11 @@ inputs:
   environment:
     description: 'environment'
     required: false
-    default: ''    
+    default: ''
+  skip-deployment:
+    description: 'Skip deployment to AWS'
+    required: false
+    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -48,6 +52,7 @@ runs:
       shell: bash
     
     - id: deploy-to-s3
+      if: inputs.skip-deployment == 'false'
       run: |
         HUGO_FLAGS=" --invalidateCDN --maxDeletes -1"
         
