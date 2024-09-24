@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Check out master
         uses: actions/checkout@master
-      
+
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
         with:
@@ -59,7 +59,7 @@ jobs:
     steps:
       - name: Check out master
         uses: actions/checkout@master
-      
+
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
         with:
@@ -97,7 +97,7 @@ jobs:
     steps:
       - name: Check out master
         uses: actions/checkout@master
-      
+
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
         with:
