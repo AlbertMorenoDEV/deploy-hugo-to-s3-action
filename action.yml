@@ -1,35 +1,35 @@
-name: 'Deploy Hugo to S3'
-description: 'Build and deploy Hugo static websites to AWS S3'
-author: 'AlbertMorenoDEV'
+name: "Deploy Hugo to S3"
+description: "Build and deploy Hugo static websites to AWS S3"
+author: "AlbertMorenoDEV"
 branding:
   icon: package
   color: yellow
 inputs:
   hugo-version:
-    description: 'Choose a valid Hugo version'
+    description: "Choose a valid Hugo version"
     required: true
   aws-access-key-id:
-    description: 'AWS Access Key ID'
+    description: "AWS Access Key ID"
     required: true
   aws-secret-access-key:
-    description: 'AWS Secret Access Key'
+    description: "AWS Secret Access Key"
     required: true
   target:
-    description: 'A deployment target'
+    description: "A deployment target"
     required: false
-    default: ''
+    default: ""
   config:
-    description: 'Config file'
+    description: "Config file"
     required: false
-    default: ''
+    default: ""
   environment:
-    description: 'environment'
+    description: "environment"
     required: false
-    default: ''
+    default: ""
   skip-deployment:
-    description: 'Skip deployment to AWS'
+    description: "Skip deployment to AWS"
     required: false
-    default: 'false'
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -40,35 +40,35 @@ runs:
         tar xvzf ${HUGO_DOWNLOAD} hugo
         mv hugo $HOME/hugo
       shell: bash
-    
+
     - id: download-themes
       run: |
         git submodule init
         git submodule update
       shell: bash
-    
+
     - id: hugo-build
-      run: $HOME/hugo -v
+      run: $HOME/hugo
       shell: bash
-    
+
     - id: deploy-to-s3
       if: inputs.skip-deployment == 'false'
       run: |
-        HUGO_FLAGS=" --invalidateCDN --maxDeletes -1"
-        
+        HUGO_FLAGS=" --logLevel info --invalidateCDN --maxDeletes -1"
+
         if [[ "${{ inputs.environment }}" ]]; then
           HUGO_FLAGS="$HUGO_FLAGS --environment=${{ inputs.environment }}"
-        fi        
-        
+        fi
+
         if [[ "${{ inputs.config }}" ]]; then
           HUGO_FLAGS="$HUGO_FLAGS --config=${{ inputs.config }}"
         fi
-        
+
         if [[ "${{ inputs.target }}" ]]; then
           HUGO_FLAGS="$HUGO_FLAGS --target=${{ inputs.target }}"
         fi
 
-        $HOME/hugo -v deploy $HUGO_FLAGS
+        $HOME/hugo deploy $HUGO_FLAGS
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
         AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
