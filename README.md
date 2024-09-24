@@ -4,14 +4,17 @@ This GitHub action makes it easy to build and deploy any Hugo static website to 
 
 ## Example
 
-```
+```yaml
+---
 name: Hugo Build and Deploy to S3
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
   build:
@@ -24,7 +27,7 @@ jobs:
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
         with:
-          hugo-version: 0.89.0
+          hugo-version: 0.134.3
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
@@ -37,14 +40,17 @@ Optional `config` to specify a custom config file. Handy for Hugo sites that hav
 
 #### GitHub Action
 
-```
+```yaml
+---
 name: Hugo Build and Deploy to S3
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
   build:
@@ -57,7 +63,7 @@ jobs:
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
         with:
-          hugo-version: 0.89.0
+          hugo-version: 0.134.3
           config: path/config.toml
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -73,14 +79,16 @@ If `target` is not specified in your GitHub Action, the first deployment target 
 
 #### GitHub Action
 
-```
+```yaml
 name: Hugo Build and Deploy to S3
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 jobs:
   build:
@@ -93,7 +101,7 @@ jobs:
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
         with:
-          hugo-version: 0.89.0
+          hugo-version: 0.134.3
           target: production
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -101,7 +109,8 @@ jobs:
 
 #### Hugo Config
 
-```
+```yaml
+---
 baseURL: /
 languageCode: en-us
 title: Example Site
@@ -109,12 +118,9 @@ title: Example Site
 # -------------- AWS S3 Deployment Configs -------------- #
 
 deployment:
-
   targets:
     - name: "staging"
       URL: "s3://stg.example.com?region=us-east-2"
-
     - name: "production"
       URL: "s3://example.com?region=us-east-1"
-
 ```
