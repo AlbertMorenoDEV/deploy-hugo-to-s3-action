@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.9
         with:
           hugo-version: 0.134.3
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.9
         with:
           hugo-version: 0.134.3
           config: path/config.toml
@@ -99,7 +99,7 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.5
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.9
         with:
           hugo-version: 0.134.3
           target: production
