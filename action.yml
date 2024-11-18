@@ -35,7 +35,7 @@ runs:
   steps:
     - id: install-hugo
       run: |
-        HUGO_DOWNLOAD=hugo_extended_${{ inputs.hugo-version }}_Linux-64bit.tar.gz
+        HUGO_DOWNLOAD=hugo_extended_withdeploy_${{ inputs.hugo-version }}_Linux-64bit.tar.gz
         wget https://github.com/gohugoio/hugo/releases/download/v${{ inputs.hugo-version }}/${HUGO_DOWNLOAD}
         tar xvzf ${HUGO_DOWNLOAD} hugo
         mv hugo $HOME/hugo
