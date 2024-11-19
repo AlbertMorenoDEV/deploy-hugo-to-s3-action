@@ -25,9 +25,9 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.9
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.10
         with:
-          hugo-version: 0.134.3
+          hugo-version: 0.139.0
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
@@ -61,9 +61,9 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.9
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.10
         with:
-          hugo-version: 0.134.3
+          hugo-version: 0.139.0
           config: path/config.toml
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -99,9 +99,9 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.9
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.10
         with:
-          hugo-version: 0.134.3
+          hugo-version: 0.139.0
           target: production
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
