@@ -19,7 +19,7 @@ inputs:
     required: false
   aws-region:
     description: "AWS Region"
-    required: true
+    required: false
   target:
     description: "A deployment target"
     required: false
@@ -39,6 +39,14 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - id: validate-inputs
+      run: |
+        if [[ "${{ inputs.aws-role-to-assume }}" != "" && "${{ inputs.aws-region }}" == "" ]]; then
+          echo "::error::aws-region is required when using OIDC"
+          exit 1
+        fi
+      shell: bash
+
     - id: install-hugo
       run: |
         set -e
