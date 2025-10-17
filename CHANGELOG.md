@@ -20,7 +20,7 @@
     -   The `deploy-to-s3` step has been refactored to make it more readable.
 -   **ci: add actionlint workflow**
     -   A new workflow has been added to lint the action.
--   **docs: update Hugo version to 0.151.1 in README**
+-   **docs: update Hugo version to 0.151.2 in README**
     -   The Hugo version in the `README.md` file has been updated to the latest version.
 -   **feat: add error handling**
     -   Error handling has been added to the action.

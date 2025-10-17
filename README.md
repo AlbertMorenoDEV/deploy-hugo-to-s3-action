@@ -91,9 +91,9 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.11
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
         with:
-          hugo-version: 0.151.1
+          hugo-version: 0.151.2
           aws-role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
           aws-region: us-east-1
 ```
@@ -131,12 +131,11 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.11
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
         with:
-          hugo-version: 0.151.1
+          hugo-version: 0.151.2
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
 ```
 
 ## Custom Config File
@@ -171,9 +170,9 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.11
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
         with:
-          hugo-version: 0.151.1
+          hugo-version: 0.151.2
           config: path/config.toml
           aws-role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
           aws-region: us-east-1
@@ -212,9 +211,9 @@ jobs:
         uses: actions/checkout@master
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.11
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
         with:
-          hugo-version: 0.151.1
+          hugo-version: 0.151.2
           target: production
           aws-role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
           aws-region: us-east-1

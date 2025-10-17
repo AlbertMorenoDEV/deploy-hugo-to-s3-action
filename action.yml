@@ -68,7 +68,7 @@ runs:
           HUGO_ARCH="ARM64"
         fi
 
-        HUGO_DOWNLOAD=hugo_extended_with_deploy_${{ inputs.hugo-version }}_${HUGO_OS}-${HUGO_ARCH}.${HUGO_EXTENSION}
+        HUGO_DOWNLOAD=hugo_extended_withdeploy_${{ inputs.hugo-version }}_${HUGO_OS}-${HUGO_ARCH}.${HUGO_EXTENSION}
         wget https://github.com/gohugoio/hugo/releases/download/v${{ inputs.hugo-version }}/${HUGO_DOWNLOAD}
 
         if [[ "${{ runner.os }}" == "Windows" ]]; then
