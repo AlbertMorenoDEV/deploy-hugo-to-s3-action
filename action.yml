@@ -41,6 +41,8 @@ runs:
   steps:
     - id: install-hugo
       run: |
+        set -e
+
         if [[ "${{ runner.os }}" == "Linux" ]]; then
           HUGO_OS="Linux"
           HUGO_EXTENSION="tar.gz"
@@ -72,6 +74,7 @@ runs:
 
     - id: download-themes
       run: |
+        set -e
         git submodule init
         git submodule update
       shell: bash
@@ -84,12 +87,16 @@ runs:
         aws-region: ${{ inputs.aws-region }}
 
     - id: hugo-build
-      run: $HOME/hugo
+      run: |
+        set -e
+        $HOME/hugo
       shell: bash
 
     - id: deploy-to-s3
       if: inputs.skip-deployment == 'false'
       run: |
+        set -e
+
         # Initialize an array to hold the Hugo flags.
         HUGO_FLAGS=("--logLevel" "info" "--invalidateCDN" "--maxDeletes" "-1")
 
