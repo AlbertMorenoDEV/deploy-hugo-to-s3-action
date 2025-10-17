@@ -2,6 +2,12 @@
 
 This GitHub action makes it easy to build and deploy any Hugo static website to AWS S3 with just one step.
 
+## Features
+
+- **Portable:** The action is portable and works on Linux, Windows, and macOS runners with x64 and ARM64 architectures.
+- **Secure:** The action supports OpenID Connect (OIDC) for authentication, which is more secure than using long-lived access keys.
+- **Flexible:** The action supports two authentication methods: OIDC and AWS Access Keys.
+
 ## Authentication
 
 This action supports two authentication methods:
