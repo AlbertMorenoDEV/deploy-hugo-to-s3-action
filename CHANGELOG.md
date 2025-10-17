@@ -11,6 +11,8 @@
 
 -   **fix: update actions/checkout version in linter workflow**
     -   The `actions/checkout` version in the `linter.yml` workflow has been updated to `v4` to fix a compatibility issue with the runner.
+-   **fix: make aws-region not required**
+    -   The `aws-region` input is now not required to avoid breaking changes for users who are not using OIDC.
 
 ### Other Changes
 
