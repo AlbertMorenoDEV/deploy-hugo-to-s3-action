@@ -10,9 +10,15 @@ inputs:
     required: true
   aws-access-key-id:
     description: "AWS Access Key ID"
-    required: true
+    required: false
   aws-secret-access-key:
     description: "AWS Secret Access Key"
+    required: false
+  aws-role-to-assume:
+    description: "AWS Role to Assume"
+    required: false
+  aws-region:
+    description: "AWS Region"
     required: true
   target:
     description: "A deployment target"
@@ -46,6 +52,13 @@ runs:
         git submodule init
         git submodule update
       shell: bash
+
+    - id: configure-aws-credentials
+      if: "${{ inputs.aws-role-to-assume != '' }}"
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: ${{ inputs.aws-role-to-assume }}
+        aws-region: ${{ inputs.aws-region }}
 
     - id: hugo-build
       run: $HOME/hugo
