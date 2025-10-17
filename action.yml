@@ -90,21 +90,26 @@ runs:
     - id: deploy-to-s3
       if: inputs.skip-deployment == 'false'
       run: |
-        HUGO_FLAGS=" --logLevel info --invalidateCDN --maxDeletes -1"
+        # Initialize an array to hold the Hugo flags.
+        HUGO_FLAGS=("--logLevel" "info" "--invalidateCDN" "--maxDeletes" "-1")
 
+        # Add the environment flag if it is provided.
         if [[ "${{ inputs.environment }}" ]]; then
-          HUGO_FLAGS="$HUGO_FLAGS --environment=${{ inputs.environment }}"
+          HUGO_FLAGS+=("--environment" "${{ inputs.environment }}")
         fi
 
+        # Add the config flag if it is provided.
         if [[ "${{ inputs.config }}" ]]; then
-          HUGO_FLAGS="$HUGO_FLAGS --config=${{ inputs.config }}"
+          HUGO_FLAGS+=("--config" "${{ inputs.config }}")
         fi
 
+        # Add the target flag if it is provided.
         if [[ "${{ inputs.target }}" ]]; then
-          HUGO_FLAGS="$HUGO_FLAGS --target=${{ inputs.target }}"
+          HUGO_FLAGS+=("--target" "${{ inputs.target }}")
         fi
 
-        $HOME/hugo deploy $HUGO_FLAGS
+        # Deploy the website.
+        $HOME/hugo deploy "${HUGO_FLAGS[@]}"
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
         AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
