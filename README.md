@@ -7,6 +7,24 @@ This GitHub action makes it easy to build and deploy any Hugo static website to 
 - **Portable:** The action is portable and works on Linux, Windows, and macOS runners with x64 and ARM64 architectures.
 - **Secure:** The action supports OpenID Connect (OIDC) for authentication, which is more secure than using long-lived access keys.
 - **Flexible:** The action supports two authentication methods: OIDC and AWS Access Keys.
+- **Fast:** Automatic caching of the Hugo binary reduces build times.
+
+## Inputs
+
+| Input | Description | Required | Default |
+|-------|-------------|----------|---------|
+| `hugo-version` | Hugo version to use (e.g., `0.151.2`) | Yes | |
+| `aws-access-key-id` | AWS Access Key ID | No | |
+| `aws-secret-access-key` | AWS Secret Access Key | No | |
+| `aws-role-to-assume` | AWS Role to Assume (OIDC) | No | |
+| `aws-region` | AWS Region | No | |
+| `target` | Hugo deployment target | No | |
+| `config` | Custom Hugo config file path | No | |
+| `environment` | Hugo environment (e.g., `production`) | No | |
+| `skip-deployment` | Skip the deployment step | No | `false` |
+| `build-args` | Additional arguments for `hugo` build | No | |
+| `deploy-args` | Additional arguments for `hugo deploy` | No | |
+| `destination` | Build output directory | No | `public` |
 
 ## Authentication
 

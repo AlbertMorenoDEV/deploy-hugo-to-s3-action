@@ -2,8 +2,8 @@ name: "Deploy Hugo to S3"
 description: "Build and deploy Hugo static websites to AWS S3"
 author: "AlbertMorenoDEV"
 branding:
-  icon: package
-  color: yellow
+  icon: zap
+  color: orange
 inputs:
   hugo-version:
     description: "Choose a valid Hugo version"
@@ -36,6 +36,18 @@ inputs:
     description: "Skip deployment to AWS"
     required: false
     default: "false"
+  build-args:
+    description: "Additional arguments for the 'hugo' build command"
+    required: false
+    default: ""
+  deploy-args:
+    description: "Additional arguments for the 'hugo deploy' command"
+    required: false
+    default: ""
+  destination:
+    description: "Destination directory for the Hugo build output"
+    required: false
+    default: "public"
 runs:
   using: "composite"
   steps:
@@ -45,11 +57,23 @@ runs:
           echo "::error::aws-region is required when using OIDC"
           exit 1
         fi
+        if [[ ! "${{ inputs.hugo-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::warning::Hugo version '${{ inputs.hugo-version }}' might not be a valid semver. Proceeding anyway..."
+        fi
       shell: bash
 
+    - name: Cache Hugo Binary
+      id: cache-hugo
+      uses: actions/cache@v3
+      with:
+        path: ${{ runner.temp }}/hugo-bin
+        key: hugo-${{ runner.os }}-${{ runner.arch }}-${{ inputs.hugo-version }}
+
     - id: install-hugo
+      if: steps.cache-hugo.outputs.cache-hit != 'true'
       run: |
         set -e
+        mkdir -p ${{ runner.temp }}/hugo-bin
 
         if [[ "${{ runner.os }}" == "Linux" ]]; then
           HUGO_OS="Linux"
@@ -77,7 +101,13 @@ runs:
           tar xvzf ${HUGO_DOWNLOAD} hugo
         fi
 
-        mv hugo $HOME/hugo
+        mv hugo ${{ runner.temp }}/hugo-bin/hugo
+        rm ${HUGO_DOWNLOAD}
+      shell: bash
+
+    - id: verify-hugo
+      run: |
+        ${{ runner.temp }}/hugo-bin/hugo version
       shell: bash
 
     - id: download-themes
@@ -97,7 +127,24 @@ runs:
     - id: hugo-build
       run: |
         set -e
-        $HOME/hugo
+        # Build arguments.
+        HUGO_BUILD_FLAGS=("-d" "${{ inputs.destination }}")
+        
+        if [[ "${{ inputs.environment }}" ]]; then
+          HUGO_BUILD_FLAGS+=("--environment" "${{ inputs.environment }}")
+        fi
+
+        if [[ "${{ inputs.config }}" ]]; then
+          HUGO_BUILD_FLAGS+=("--config" "${{ inputs.config }}")
+        fi
+
+        # Add custom build args if provided.
+        if [[ "${{ inputs.build-args }}" ]]; then
+          read -r -a EXTRA_BUILD_ARGS <<< "${{ inputs.build-args }}"
+          HUGO_BUILD_FLAGS+=("${EXTRA_BUILD_ARGS[@]}")
+        fi
+
+        ${{ runner.temp }}/hugo-bin/hugo "${HUGO_BUILD_FLAGS[@]}"
       shell: bash
 
     - id: deploy-to-s3
@@ -123,9 +170,16 @@ runs:
           HUGO_FLAGS+=("--target" "${{ inputs.target }}")
         fi
 
+        # Add custom deploy args if provided.
+        if [[ "${{ inputs.deploy-args }}" ]]; then
+          read -r -a EXTRA_DEPLOY_ARGS <<< "${{ inputs.deploy-args }}"
+          HUGO_FLAGS+=("${EXTRA_DEPLOY_ARGS[@]}")
+        fi
+
         # Deploy the website.
-        $HOME/hugo deploy "${HUGO_FLAGS[@]}"
+        ${{ runner.temp }}/hugo-bin/hugo deploy "${HUGO_FLAGS[@]}"
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
         AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
       shell: bash
+
