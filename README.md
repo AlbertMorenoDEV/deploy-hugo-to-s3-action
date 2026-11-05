@@ -7,7 +7,7 @@ This GitHub Action makes it easy to build and deploy any Hugo static website to 
 - **Portable:** Works on Linux, Windows, and macOS runners with `x64` and `ARM64` architectures (supporting `.tar.gz`, `.zip`, and macOS universal `.pkg` releases).
 - **Secure:** Supports OpenID Connect (OIDC) for authentication without storing long-lived AWS access keys, and hardens all shell steps against script injection.
 - **Flexible:** Supports both OIDC and static AWS Access Keys, custom `working-directory` for monorepos, Hugo Modules (`go.mod`) and Git submodules, and `hugo-version: latest`.
-- **Fast:** Automatic caching of the resolved Hugo binary (`actions/cache@v4`) speeds up workflow runs.
+- **Fast:** Automatic caching of the resolved Hugo binary (`actions/cache@v6`) speeds up workflow runs.
 - **Observable:** Exports action outputs (`hugo-version-installed`, `build-path`) and publishes a clean deployment table to the GitHub Actions Step Summary.
 
 ## Inputs
@@ -115,7 +115,7 @@ jobs:
       contents: read
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.1.0
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build and deploy
         uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.1.0

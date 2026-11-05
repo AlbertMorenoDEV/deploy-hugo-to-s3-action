@@ -13,7 +13,7 @@ jobs:
     name: Lint Workflows & Action
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Run actionlint
         uses: reviewdog/action-actionlint@v1
         with:
@@ -28,7 +28,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         hugo-version: ["latest", "0.151.2"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create sample Hugo site
         shell: bash
@@ -40,7 +40,7 @@ jobs:
           title = "CI Test Hugo Site"
           EOF
           cat << 'EOF' > test-site/layouts/index.html
-          <!DOCTYPE html><html><head><title>{{ .Title }}</title></head><body><h1>{{ .Title }}</h1></body></html>
+          <!DOCTYPE html><html><head><title>{{ .Site.Title }}</title></head><body><h1>{{ .Site.Title }}</h1>{{ .Content }}</body></html>
           EOF
           cat << 'EOF' > test-site/content/_index.md
           ---

@@ -85,7 +85,8 @@ runs:
           if [[ -n "${GH_TOKEN:-}" ]]; then
             CURL_AUTH=(-H "Authorization: Bearer $GH_TOKEN")
           fi
-          RESOLVED_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" https://api.github.com/repos/gohugoio/hugo/releases/latest | grep -m 1 '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+          RELEASE_JSON=$(curl -fsSL "${CURL_AUTH[@]}" https://api.github.com/repos/gohugoio/hugo/releases/latest)
+          RESOLVED_VERSION=$(printf '%s\n' "$RELEASE_JSON" | grep -m 1 '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
           if [[ -z "$RESOLVED_VERSION" ]]; then
             echo "::error::Failed to resolve the latest Hugo version from GitHub Releases"
             exit 1
@@ -102,7 +103,7 @@ runs:
 
     - name: Cache Hugo Binary
       id: cache-hugo
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ runner.temp }}/hugo-bin
         key: hugo-${{ runner.os }}-${{ runner.arch }}-${{ steps.validate-inputs.outputs.resolved-version }}
@@ -231,7 +232,7 @@ runs:
     - name: Configure AWS Credentials (OIDC)
       id: configure-aws-credentials
       if: ${{ inputs.aws-role-to-assume != '' }}
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v6
       with:
         role-to-assume: ${{ inputs.aws-role-to-assume }}
         aws-region: ${{ inputs.aws-region }}

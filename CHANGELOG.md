@@ -11,7 +11,7 @@
 
 #### Security & Modernization
 - **security: prevent script injection in composite steps**: Pass all user inputs via step `env:` variables instead of inline `${{ inputs.* }}` interpolation inside `run:` scripts.
-- **chore(deps): upgrade inner actions to v4**: Update `actions/cache` from `v3` to `v4` and `aws-actions/configure-aws-credentials` from `v1` to `v4`.
+- **chore(deps): upgrade inner actions to v6**: Update `actions/cache` from `v3` to `v6` and `aws-actions/configure-aws-credentials` from `v1` to `v6`.
 
 #### New Features
 - **feat: support `hugo-version: latest` (and default to `latest`)**: Automatically resolve the latest Hugo version via the GitHub Releases API when `hugo-version` is omitted or set to `latest` (also strips leading `v` if provided).
