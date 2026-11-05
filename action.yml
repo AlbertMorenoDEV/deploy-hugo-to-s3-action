@@ -6,8 +6,9 @@ branding:
   color: orange
 inputs:
   hugo-version:
-    description: "Choose a valid Hugo version"
-    required: true
+    description: "Hugo version to use (e.g., '0.169.0' or 'latest')"
+    required: false
+    default: "latest"
   aws-access-key-id:
     description: "AWS Access Key ID"
     required: false
@@ -15,7 +16,7 @@ inputs:
     description: "AWS Secret Access Key"
     required: false
   aws-role-to-assume:
-    description: "AWS Role to Assume"
+    description: "AWS Role to Assume (OIDC)"
     required: false
   aws-region:
     description: "AWS Region"
@@ -29,7 +30,7 @@ inputs:
     required: false
     default: ""
   environment:
-    description: "environment"
+    description: "Hugo environment (e.g., 'production')"
     required: false
     default: ""
   skip-deployment:
@@ -48,138 +49,300 @@ inputs:
     description: "Destination directory for the Hugo build output"
     required: false
     default: "public"
+  working-directory:
+    description: "Working directory for the Hugo site"
+    required: false
+    default: "."
+outputs:
+  hugo-version-installed:
+    description: "The resolved Hugo version that was installed and executed"
+    value: ${{ steps.validate-inputs.outputs.resolved-version }}
+  build-path:
+    description: "Path to the built Hugo site output directory"
+    value: ${{ steps.hugo-build.outputs.build-path }}
 runs:
   using: "composite"
   steps:
-    - id: validate-inputs
+    - name: Validate Inputs and Resolve Hugo Version
+      id: validate-inputs
+      env:
+        INPUT_AWS_ROLE: ${{ inputs.aws-role-to-assume }}
+        INPUT_AWS_REGION: ${{ inputs.aws-region }}
+        INPUT_HUGO_VERSION: ${{ inputs.hugo-version }}
+        GH_TOKEN: ${{ github.token }}
       run: |
-        if [[ "${{ inputs.aws-role-to-assume }}" != "" && "${{ inputs.aws-region }}" == "" ]]; then
-          echo "::error::aws-region is required when using OIDC"
+        set -euo pipefail
+
+        if [[ -n "$INPUT_AWS_ROLE" && -z "$INPUT_AWS_REGION" ]]; then
+          echo "::error::aws-region is required when using OIDC (aws-role-to-assume)"
           exit 1
         fi
-        if [[ ! "${{ inputs.hugo-version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "::warning::Hugo version '${{ inputs.hugo-version }}' might not be a valid semver. Proceeding anyway..."
+
+        RESOLVED_VERSION="${INPUT_HUGO_VERSION#v}"
+        if [[ -z "$RESOLVED_VERSION" || "$RESOLVED_VERSION" == "latest" ]]; then
+          echo "Resolving latest Hugo version..."
+          CURL_AUTH=()
+          if [[ -n "${GH_TOKEN:-}" ]]; then
+            CURL_AUTH=(-H "Authorization: Bearer $GH_TOKEN")
+          fi
+          RESOLVED_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" https://api.github.com/repos/gohugoio/hugo/releases/latest | grep -m 1 '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
+          if [[ -z "$RESOLVED_VERSION" ]]; then
+            echo "::error::Failed to resolve the latest Hugo version from GitHub Releases"
+            exit 1
+          fi
         fi
+
+        if [[ ! "$RESOLVED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::warning::Hugo version '$RESOLVED_VERSION' might not be a valid semver. Proceeding anyway..."
+        fi
+
+        echo "Resolved Hugo version: $RESOLVED_VERSION"
+        echo "resolved-version=$RESOLVED_VERSION" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Cache Hugo Binary
       id: cache-hugo
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{ runner.temp }}/hugo-bin
-        key: hugo-${{ runner.os }}-${{ runner.arch }}-${{ inputs.hugo-version }}
+        key: hugo-${{ runner.os }}-${{ runner.arch }}-${{ steps.validate-inputs.outputs.resolved-version }}
 
-    - id: install-hugo
+    - name: Install Hugo
+      id: install-hugo
       if: steps.cache-hugo.outputs.cache-hit != 'true'
+      env:
+        HUGO_VERSION: ${{ steps.validate-inputs.outputs.resolved-version }}
+        RUNNER_OS_NAME: ${{ runner.os }}
+        RUNNER_ARCH_NAME: ${{ runner.arch }}
+        RUNNER_TEMP_DIR: ${{ runner.temp }}
       run: |
-        set -e
-        mkdir -p ${{ runner.temp }}/hugo-bin
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP_DIR/hugo-bin"
 
-        if [[ "${{ runner.os }}" == "Linux" ]]; then
-          HUGO_OS="Linux"
-          HUGO_EXTENSION="tar.gz"
-        elif [[ "${{ runner.os }}" == "Windows" ]]; then
-          HUGO_OS="Windows"
-          HUGO_EXTENSION="zip"
-        elif [[ "${{ runner.os }}" == "macOS" ]]; then
-          HUGO_OS="macOS"
-          HUGO_EXTENSION="tar.gz"
-        fi
-
-        if [[ "${{ runner.arch }}" == "X64" ]]; then
-          HUGO_ARCH="64bit"
-        elif [[ "${{ runner.arch }}" == "ARM64" ]]; then
-          HUGO_ARCH="ARM64"
-        fi
-
-        HUGO_DOWNLOAD=hugo_extended_withdeploy_${{ inputs.hugo-version }}_${HUGO_OS}-${HUGO_ARCH}.${HUGO_EXTENSION}
-        wget https://github.com/gohugoio/hugo/releases/download/v${{ inputs.hugo-version }}/${HUGO_DOWNLOAD}
-
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
-          unzip ${HUGO_DOWNLOAD}
+        # Determine target platform and archive candidates (in order of preference:
+        # 1. hugo_extended_withdeploy (Hugo >= 0.137.0)
+        # 2. hugo_extended (Hugo < 0.137.0 where deploy was included in extended)
+        # 3. hugo (fallback for Windows ARM64 where extended is not built)
+        CANDIDATES=()
+        if [[ "$RUNNER_OS_NAME" == "Linux" ]]; then
+          if [[ "$RUNNER_ARCH_NAME" == "ARM64" ]]; then
+            ARCH_SLUGS=("linux-arm64" "Linux-ARM64")
+          else
+            ARCH_SLUGS=("linux-amd64" "Linux-64bit")
+          fi
+          for ed in "hugo_extended_withdeploy" "hugo_extended"; do
+            for slug in "${ARCH_SLUGS[@]}"; do
+              CANDIDATES+=("${ed}_${HUGO_VERSION}_${slug}.tar.gz")
+            done
+          done
+        elif [[ "$RUNNER_OS_NAME" == "macOS" ]]; then
+          for ed in "hugo_extended_withdeploy" "hugo_extended"; do
+            CANDIDATES+=(
+              "${ed}_${HUGO_VERSION}_darwin-universal.tar.gz"
+              "${ed}_${HUGO_VERSION}_darwin-universal.pkg"
+              "${ed}_${HUGO_VERSION}_macOS-64bit.tar.gz"
+              "${ed}_${HUGO_VERSION}_macOS-ARM64.tar.gz"
+            )
+          done
+        elif [[ "$RUNNER_OS_NAME" == "Windows" ]]; then
+          if [[ "$RUNNER_ARCH_NAME" == "ARM64" ]]; then
+            CANDIDATES+=(
+              "hugo_extended_withdeploy_${HUGO_VERSION}_windows-arm64.zip"
+              "hugo_extended_${HUGO_VERSION}_windows-arm64.zip"
+              "hugo_${HUGO_VERSION}_windows-arm64.zip"
+              "hugo_extended_withdeploy_${HUGO_VERSION}_windows-amd64.zip"
+              "hugo_extended_${HUGO_VERSION}_windows-amd64.zip"
+            )
+          else
+            for ed in "hugo_extended_withdeploy" "hugo_extended"; do
+              CANDIDATES+=(
+                "${ed}_${HUGO_VERSION}_windows-amd64.zip"
+                "${ed}_${HUGO_VERSION}_Windows-64bit.zip"
+              )
+            done
+          fi
         else
-          tar xvzf ${HUGO_DOWNLOAD} hugo
+          echo "::error::Unsupported runner OS: $RUNNER_OS_NAME"
+          exit 1
         fi
 
-        mv hugo ${{ runner.temp }}/hugo-bin/hugo
-        rm ${HUGO_DOWNLOAD}
+        DOWNLOADED_FILE=""
+        BASE_URL="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}"
+        WORK_DIR=$(mktemp -d)
+        trap 'rm -rf "$WORK_DIR"' EXIT
+
+        for candidate in "${CANDIDATES[@]}"; do
+          URL="${BASE_URL}/${candidate}"
+          echo "Trying to download ${URL}..."
+          if curl -fsSL -o "${WORK_DIR}/${candidate}" "$URL"; then
+            DOWNLOADED_FILE="${WORK_DIR}/${candidate}"
+            echo "Successfully downloaded ${candidate}"
+            break
+          fi
+        done
+
+        if [[ -z "$DOWNLOADED_FILE" ]]; then
+          echo "::error::Unable to download Hugo v${HUGO_VERSION} for ${RUNNER_OS_NAME}/${RUNNER_ARCH_NAME}"
+          exit 1
+        fi
+
+        if [[ "$DOWNLOADED_FILE" == *.zip ]]; then
+          unzip -q "$DOWNLOADED_FILE" -d "$WORK_DIR"
+          mv "$WORK_DIR/hugo.exe" "$RUNNER_TEMP_DIR/hugo-bin/hugo.exe"
+        elif [[ "$DOWNLOADED_FILE" == *.tar.gz ]]; then
+          tar -xzf "$DOWNLOADED_FILE" -C "$WORK_DIR" hugo
+          mv "$WORK_DIR/hugo" "$RUNNER_TEMP_DIR/hugo-bin/hugo"
+          chmod +x "$RUNNER_TEMP_DIR/hugo-bin/hugo"
+        elif [[ "$DOWNLOADED_FILE" == *.pkg ]]; then
+          pkgutil --expand-full "$DOWNLOADED_FILE" "$WORK_DIR/expanded-pkg"
+          HUGO_BIN_PATH=$(find "$WORK_DIR/expanded-pkg" -type f -name "hugo" | head -n 1)
+          if [[ -z "$HUGO_BIN_PATH" ]]; then
+            echo "::error::Failed to locate hugo binary inside .pkg archive"
+            exit 1
+          fi
+          mv "$HUGO_BIN_PATH" "$RUNNER_TEMP_DIR/hugo-bin/hugo"
+          chmod +x "$RUNNER_TEMP_DIR/hugo-bin/hugo"
+        fi
       shell: bash
 
-    - id: verify-hugo
+    - name: Verify Hugo Installation
+      id: verify-hugo
+      env:
+        RUNNER_TEMP_DIR: ${{ runner.temp }}
       run: |
-        ${{ runner.temp }}/hugo-bin/hugo version
+        set -euo pipefail
+        echo "$RUNNER_TEMP_DIR/hugo-bin" >> "$GITHUB_PATH"
+        "$RUNNER_TEMP_DIR/hugo-bin/hugo" version
       shell: bash
 
-    - id: download-themes
+    - name: Download Themes and Submodules
+      id: download-themes
+      working-directory: ${{ inputs.working-directory }}
       run: |
-        set -e
-        git submodule init
-        git submodule update
+        set -euo pipefail
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          git submodule update --init --recursive
+        fi
+        if [[ -f "go.mod" ]]; then
+          hugo mod get
+        fi
       shell: bash
 
-    - id: configure-aws-credentials
-      if: "${{ inputs.aws-role-to-assume != '' }}"
-      uses: aws-actions/configure-aws-credentials@v1
+    - name: Configure AWS Credentials (OIDC)
+      id: configure-aws-credentials
+      if: ${{ inputs.aws-role-to-assume != '' }}
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ inputs.aws-role-to-assume }}
         aws-region: ${{ inputs.aws-region }}
 
-    - id: hugo-build
+    - name: Build Hugo Site
+      id: hugo-build
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_DESTINATION: ${{ inputs.destination }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_BUILD_ARGS: ${{ inputs.build-args }}
       run: |
-        set -e
-        # Build arguments.
-        HUGO_BUILD_FLAGS=("-d" "${{ inputs.destination }}")
-        
-        if [[ "${{ inputs.environment }}" ]]; then
-          HUGO_BUILD_FLAGS+=("--environment" "${{ inputs.environment }}")
+        set -euo pipefail
+        HUGO_BUILD_FLAGS=("-d" "$INPUT_DESTINATION")
+
+        if [[ -n "$INPUT_ENVIRONMENT" ]]; then
+          HUGO_BUILD_FLAGS+=("--environment" "$INPUT_ENVIRONMENT")
         fi
 
-        if [[ "${{ inputs.config }}" ]]; then
-          HUGO_BUILD_FLAGS+=("--config" "${{ inputs.config }}")
+        if [[ -n "$INPUT_CONFIG" ]]; then
+          HUGO_BUILD_FLAGS+=("--config" "$INPUT_CONFIG")
         fi
 
-        # Add custom build args if provided.
-        if [[ "${{ inputs.build-args }}" ]]; then
-          read -r -a EXTRA_BUILD_ARGS <<< "${{ inputs.build-args }}"
+        if [[ -n "$INPUT_BUILD_ARGS" ]]; then
+          read -r -a EXTRA_BUILD_ARGS <<< "$INPUT_BUILD_ARGS"
           HUGO_BUILD_FLAGS+=("${EXTRA_BUILD_ARGS[@]}")
         fi
 
-        ${{ runner.temp }}/hugo-bin/hugo "${HUGO_BUILD_FLAGS[@]}"
+        hugo "${HUGO_BUILD_FLAGS[@]}"
+        echo "build-path=$(cd "$INPUT_DESTINATION" && pwd)" >> "$GITHUB_OUTPUT"
       shell: bash
 
-    - id: deploy-to-s3
-      if: inputs.skip-deployment == 'false'
+    - name: Deploy to AWS S3
+      id: deploy-to-s3
+      if: ${{ inputs.skip-deployment == 'false' }}
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+        INPUT_AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+        INPUT_AWS_REGION: ${{ inputs.aws-region }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_DEPLOY_ARGS: ${{ inputs.deploy-args }}
       run: |
-        set -e
+        set -euo pipefail
 
-        # Initialize an array to hold the Hugo flags.
+        # Only override AWS environment credentials if static keys were explicitly passed;
+        # this preserves credentials exported by aws-actions/configure-aws-credentials (OIDC).
+        if [[ -n "$INPUT_AWS_ACCESS_KEY_ID" ]]; then
+          export AWS_ACCESS_KEY_ID="$INPUT_AWS_ACCESS_KEY_ID"
+        fi
+        if [[ -n "$INPUT_AWS_SECRET_ACCESS_KEY" ]]; then
+          export AWS_SECRET_ACCESS_KEY="$INPUT_AWS_SECRET_ACCESS_KEY"
+        fi
+        if [[ -n "$INPUT_AWS_REGION" && -z "${AWS_REGION:-}" ]]; then
+          export AWS_REGION="$INPUT_AWS_REGION"
+          export AWS_DEFAULT_REGION="$INPUT_AWS_REGION"
+        fi
+
         HUGO_FLAGS=("--logLevel" "info" "--invalidateCDN" "--maxDeletes" "-1")
 
-        # Add the environment flag if it is provided.
-        if [[ "${{ inputs.environment }}" ]]; then
-          HUGO_FLAGS+=("--environment" "${{ inputs.environment }}")
+        if [[ -n "$INPUT_ENVIRONMENT" ]]; then
+          HUGO_FLAGS+=("--environment" "$INPUT_ENVIRONMENT")
         fi
 
-        # Add the config flag if it is provided.
-        if [[ "${{ inputs.config }}" ]]; then
-          HUGO_FLAGS+=("--config" "${{ inputs.config }}")
+        if [[ -n "$INPUT_CONFIG" ]]; then
+          HUGO_FLAGS+=("--config" "$INPUT_CONFIG")
         fi
 
-        # Add the target flag if it is provided.
-        if [[ "${{ inputs.target }}" ]]; then
-          HUGO_FLAGS+=("--target" "${{ inputs.target }}")
+        if [[ -n "$INPUT_TARGET" ]]; then
+          HUGO_FLAGS+=("--target" "$INPUT_TARGET")
         fi
 
-        # Add custom deploy args if provided.
-        if [[ "${{ inputs.deploy-args }}" ]]; then
-          read -r -a EXTRA_DEPLOY_ARGS <<< "${{ inputs.deploy-args }}"
+        if [[ -n "$INPUT_DEPLOY_ARGS" ]]; then
+          read -r -a EXTRA_DEPLOY_ARGS <<< "$INPUT_DEPLOY_ARGS"
           HUGO_FLAGS+=("${EXTRA_DEPLOY_ARGS[@]}")
         fi
 
-        # Deploy the website.
-        ${{ runner.temp }}/hugo-bin/hugo deploy "${HUGO_FLAGS[@]}"
-      env:
-        AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
-        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+        hugo deploy "${HUGO_FLAGS[@]}"
       shell: bash
 
+    - name: Generate Job Summary
+      id: job-summary
+      if: always()
+      env:
+        RESOLVED_VERSION: ${{ steps.validate-inputs.outputs.resolved-version }}
+        BUILD_PATH: ${{ steps.hugo-build.outputs.build-path }}
+        BUILD_OUTCOME: ${{ steps.hugo-build.outcome }}
+        DEPLOY_OUTCOME: ${{ steps.deploy-to-s3.outcome }}
+        SKIP_DEPLOYMENT: ${{ inputs.skip-deployment }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+      run: |
+        {
+          echo "### 🚀 Deploy Hugo to S3 Summary"
+          echo ""
+          echo "| Property | Value |"
+          echo "| :--- | :--- |"
+          echo "| **Hugo Version** | \`v${RESOLVED_VERSION:-unknown}\` |"
+          echo "| **Environment** | \`${INPUT_ENVIRONMENT:-default}\` |"
+          echo "| **Target** | \`${INPUT_TARGET:-default}\` |"
+          echo "| **Build Status** | \`${BUILD_OUTCOME}\` |"
+          if [[ "$SKIP_DEPLOYMENT" == "true" ]]; then
+            echo "| **Deployment Status** | \`skipped\` |"
+          else
+            echo "| **Deployment Status** | \`${DEPLOY_OUTCOME}\` |"
+          fi
+          if [[ -n "$BUILD_PATH" ]]; then
+            echo "| **Output Directory** | \`${BUILD_PATH}\` |"
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+      shell: bash

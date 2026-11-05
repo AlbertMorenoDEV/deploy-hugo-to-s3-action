@@ -1,52 +1,61 @@
 # Deploy Hugo To S3 Action
 
-This GitHub action makes it easy to build and deploy any Hugo static website to AWS S3 with just one step.
+This GitHub Action makes it easy to build and deploy any Hugo static website to AWS S3 with just one step.
 
 ## Features
 
-- **Portable:** The action is portable and works on Linux, Windows, and macOS runners with x64 and ARM64 architectures.
-- **Secure:** The action supports OpenID Connect (OIDC) for authentication, which is more secure than using long-lived access keys.
-- **Flexible:** The action supports two authentication methods: OIDC and AWS Access Keys.
-- **Fast:** Automatic caching of the Hugo binary reduces build times.
+- **Portable:** Works on Linux, Windows, and macOS runners with `x64` and `ARM64` architectures (supporting `.tar.gz`, `.zip`, and macOS universal `.pkg` releases).
+- **Secure:** Supports OpenID Connect (OIDC) for authentication without storing long-lived AWS access keys, and hardens all shell steps against script injection.
+- **Flexible:** Supports both OIDC and static AWS Access Keys, custom `working-directory` for monorepos, Hugo Modules (`go.mod`) and Git submodules, and `hugo-version: latest`.
+- **Fast:** Automatic caching of the resolved Hugo binary (`actions/cache@v4`) speeds up workflow runs.
+- **Observable:** Exports action outputs (`hugo-version-installed`, `build-path`) and publishes a clean deployment table to the GitHub Actions Step Summary.
 
 ## Inputs
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `hugo-version` | Hugo version to use (e.g., `0.151.2`) | Yes | |
+| `hugo-version` | Hugo version to use (e.g., `0.169.0` or `latest`) | No | `latest` |
 | `aws-access-key-id` | AWS Access Key ID | No | |
 | `aws-secret-access-key` | AWS Secret Access Key | No | |
 | `aws-role-to-assume` | AWS Role to Assume (OIDC) | No | |
-| `aws-region` | AWS Region | No | |
-| `target` | Hugo deployment target | No | |
-| `config` | Custom Hugo config file path | No | |
-| `environment` | Hugo environment (e.g., `production`) | No | |
-| `skip-deployment` | Skip the deployment step | No | `false` |
-| `build-args` | Additional arguments for `hugo` build | No | |
-| `deploy-args` | Additional arguments for `hugo deploy` | No | |
+| `aws-region` | AWS Region (required when using `aws-role-to-assume`) | No | |
+| `target` | Hugo deployment target | No | `""` |
+| `config` | Custom Hugo config file path | No | `""` |
+| `environment` | Hugo environment (e.g., `production`) | No | `""` |
+| `skip-deployment` | Skip the deployment step (`true` / `false`) | No | `false` |
+| `build-args` | Additional arguments for `hugo` build | No | `""` |
+| `deploy-args` | Additional arguments for `hugo deploy` | No | `""` |
 | `destination` | Build output directory | No | `public` |
+| `working-directory` | Working directory for the Hugo site | No | `.` |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| `hugo-version-installed` | The resolved Hugo version that was installed and executed (e.g., `0.169.0`) |
+| `build-path` | Absolute path to the built Hugo site output directory |
 
 ## Authentication
 
 This action supports two authentication methods:
 
-1.  **OpenID Connect (OIDC):** This is the recommended authentication method, as it is more secure and does not require storing long-lived access keys as secrets.
-2.  **AWS Access Keys:** This method is less secure, but it is easier to set up.
+1. **OpenID Connect (OIDC):** Recommended, as it uses short-lived credentials and does not require storing long-lived access keys as secrets.
+2. **AWS Access Keys:** Uses static `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` secrets.
 
 ### OpenID Connect (OIDC)
 
-To use OIDC, you need to create an IAM role that can be assumed by GitHub Actions.
+To use OIDC, create an IAM role that can be assumed by GitHub Actions.
 
 #### 1. Create an IAM Role
 
 Create an IAM role in your AWS account. In the "Select trusted entity" step, choose "Web identity" and configure it as follows:
 
-- **Identity provider:** Choose the identity provider for your GitHub organization or user. If you don't have one, you can create one by following the instructions in the [AWS documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html).
+- **Identity provider:** Choose the identity provider for your GitHub organization or user (`token.actions.githubusercontent.com`). If you don't have one, follow the [AWS documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html).
 - **Audience:** `sts.amazonaws.com`
 
 #### 2. Attach a Policy to the Role
 
-Attach a policy to the role that grants the necessary permissions to deploy to your S3 bucket. Here is an example policy:
+Attach a policy to the role that grants the necessary permissions to deploy to your S3 bucket (and optionally invalidate CloudFront):
 
 ```json
 {
@@ -92,10 +101,10 @@ name: Hugo Build and Deploy to S3
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build:
@@ -105,28 +114,20 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Check out master
-        uses: actions/checkout@master
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.1.0
         with:
-          hugo-version: 0.151.2
+          hugo-version: latest
           aws-role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
           aws-region: us-east-1
 ```
 
 ### AWS Access Keys
 
-To use AWS access keys, you need to create an IAM user with the required permissions.
-
-#### 1. Create an IAM User
-
-Create an IAM user in your AWS account. Attach the same policy as for the OIDC role to this user.
-
-#### 2. Configure the GitHub Workflow
-
-In your GitHub workflow, add the `aws-access-key-id` and `aws-secret-access-key` as secrets and pass them to the action.
+To use AWS access keys, create an IAM user with the same permissions policy shown above, store `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in your repository secrets, and pass them to the action:
 
 ```yaml
 ---
@@ -135,109 +136,59 @@ name: Hugo Build and Deploy to S3
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build:
     name: Build and Deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Check out master
-        uses: actions/checkout@master
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.1.0
         with:
-          hugo-version: 0.151.2
+          hugo-version: 0.169.0
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 ```
 
-## Custom Config File
+## Custom Config File & Working Directory
 
-Optional `config` to specify a custom config file. Handy for Hugo sites that have more than one config file.
-
-### Example
-
-#### GitHub Action
+Use `config` to specify a custom config file, or `working-directory` when your Hugo project lives in a subdirectory.
 
 ```yaml
----
-name: Hugo Build and Deploy to S3
-
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
-
-jobs:
-  build:
-    name: Build and Deploy
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Check out master
-        uses: actions/checkout@master
-
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.1.0
         with:
-          hugo-version: 0.151.2
-          config: path/config.toml
+          hugo-version: 0.169.0
+          working-directory: site
+          config: config/production.toml
           aws-role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
           aws-region: us-east-1
 ```
 
 ## Targets
 
-Optional `input` to specify a deployment target. Handy for Hugo sites that have multiple environments (e.g. "staging" and "production").
+Optional `target` input to specify a deployment target defined in your Hugo configuration (e.g. `staging` and `production`). If `target` is omitted, Hugo uses the first target by default.
 
-If `target` is not specified in your GitHub Action, the first deployment target is used by default.
-
-### Example
-
-#### GitHub Action
+### GitHub Workflow
 
 ```yaml
-name: Hugo Build and Deploy to S3
-
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
-
-jobs:
-  build:
-    name: Build and Deploy
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Check out master
-        uses: actions/checkout@master
-
       - name: Build and deploy
-        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.0.14
+        uses: AlbertMorenoDEV/deploy-hugo-to-s3-action@v0.1.0
         with:
-          hugo-version: 0.151.2
+          hugo-version: latest
           target: production
           aws-role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
           aws-region: us-east-1
 ```
 
-#### Hugo Config
+### Hugo Config
 
 ```yaml
 ---
