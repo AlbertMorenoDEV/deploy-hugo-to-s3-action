@@ -69,7 +69,6 @@ runs:
         INPUT_AWS_ROLE: ${{ inputs.aws-role-to-assume }}
         INPUT_AWS_REGION: ${{ inputs.aws-region }}
         INPUT_HUGO_VERSION: ${{ inputs.hugo-version }}
-        GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
 
@@ -81,13 +80,10 @@ runs:
         RESOLVED_VERSION="${INPUT_HUGO_VERSION#v}"
         if [[ -z "$RESOLVED_VERSION" || "$RESOLVED_VERSION" == "latest" ]]; then
           echo "Resolving latest Hugo version..."
-          CURL_AUTH=()
-          if [[ -n "${GH_TOKEN:-}" ]]; then
-            CURL_AUTH=(-H "Authorization: Bearer $GH_TOKEN")
-          fi
-          RELEASE_JSON=$(curl -fsSL "${CURL_AUTH[@]}" https://api.github.com/repos/gohugoio/hugo/releases/latest)
-          RESOLVED_VERSION=$(printf '%s\n' "$RELEASE_JSON" | grep -m 1 '"tag_name":' | sed -E 's/.*"v?([^"]+)".*/\1/')
-          if [[ -z "$RESOLVED_VERSION" ]]; then
+          LATEST_URL=$(curl -fsSL -o /dev/null -w '%{url_effective}' https://github.com/gohugoio/hugo/releases/latest)
+          RESOLVED_VERSION="${LATEST_URL##*/}"
+          RESOLVED_VERSION="${RESOLVED_VERSION#v}"
+          if [[ -z "$RESOLVED_VERSION" || "$RESOLVED_VERSION" == "latest" ]]; then
             echo "::error::Failed to resolve the latest Hugo version from GitHub Releases"
             exit 1
           fi
